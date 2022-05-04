@@ -1,0 +1,69 @@
+global:
+  log:
+    level: debug
+    path: image-sync.log
+  database:
+    type: sqlite
+    dbfile: image-sync.db
+  syncPolicy:
+    type: latest
+    num: 30
+  source: k8s.gcr.io
+  target:
+    - type: aliyun
+      path: registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync
+    - type: huaweicloud
+      path: swr.cn-southwest-2.myhuaweicloud.com/k8s.gcr.io
+    - type: tencentyun
+      path: ccr.ccs.tencentyun.com/k8s.gcr.io.sync
+    - type: baidubce
+      path: registry.baidubce.com/k8s.gcr.io.sync
+images:
+  - namespace: ingress-nginx
+    name: controller
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: kube-apiserver
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: kube-proxy
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: kube-scheduler
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: kube-controller-manager
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: etcd
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace: coredns
+    name: coredns
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
+  - namespace:
+    name: pause
+    source: k8s.gcr.io
+    syncPolicy:
+      type: latest
+      num: 50
