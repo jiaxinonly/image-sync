@@ -50,15 +50,16 @@ class SyncJob:
             else:
                 if self.image['namespace']:
                     if target['type'] in support_subspace_list:
-                        target_full_image_name = target['path'] + '/' + image['namespace'] + '/' + image['name']
+                        target_full_image_name = target['path'] + '/' + self.image['namespace'] + '/' + self.image[
+                            'name']
                     else:
-                        target_full_image_name = target['path'] + '/' + image['namespace'] + '-' + image[
+                        target_full_image_name = target['path'] + '/' + self.image['namespace'] + '-' + self.image[
                             'name'].replace('_', '-')
                 else:
                     if target['type'] in support_subspace_list:
-                        target_full_image_name = target['path'] + '/' + image['name']
+                        target_full_image_name = target['path'] + '/' + self.image['name']
                     else:
-                        target_full_image_name = target['path'] + '/' + image['name'].replace('/', '')
+                        target_full_image_name = target['path'] + '/' + self.image['name'].replace('/', '')
             self.target_full_image_name_list.append(target_full_image_name)
             print(self.tag_list)
             for tag in self.tag_list:

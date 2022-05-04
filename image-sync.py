@@ -48,6 +48,8 @@ class ImageSync:
                     image['namespace'] = None
                 elif image['source'] == 'quay.io':
                     image['namespace'] = None
+            if not image.get("alias", None):
+                image['alias'] = None
             print(image)
             sync_job = SyncJob(image)
             sync_job.get_tag()

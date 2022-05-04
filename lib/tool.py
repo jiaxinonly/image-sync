@@ -6,6 +6,7 @@
 import requests
 import yaml
 import logging
+import re
 
 formatter = logging.Formatter('[%(asctime)s] %(filename)s line %(lineno)d - %(levelname)s: %(message)s')
 logger = logging.getLogger("image-sync")
@@ -179,7 +180,7 @@ def k8s_gcr_io_get_tag(image):
         image_info_dict = response['manifest']
         tag_list = []
         for image_info in image_info_dict.values():
-            if image_info['tag']:
+            if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
                 upload_time = image_info['timeUploadedMs']
                 tag_list.append({'tag': image_info['tag'][0], 'upload_time': upload_time})
         tag_list = sorted(tag_list, key=lambda x: x['upload_time'], reverse=True)
