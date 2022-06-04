@@ -12,12 +12,20 @@ global:
   target:
     - type: aliyun
       path: registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync
+      username:
+      password:
     - type: huaweicloud
       path: swr.cn-southwest-2.myhuaweicloud.com/k8s.gcr.io
+      username:
+      password:
     - type: tencentyun
       path: ccr.ccs.tencentyun.com/k8s.gcr.io.sync
+      username:
+      password:
     - type: baidubce
       path: registry.baidubce.com/k8s.gcr.io.sync
+      username:
+      password:
 images:
   - namespace: ingress-nginx
     name: controller

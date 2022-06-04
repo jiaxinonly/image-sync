@@ -1,4 +1,13 @@
-# image-sync 容器镜像同步工具
-> 支持k8s.gcr.io docker.io quay.io容器镜像同步到阿里云，腾讯云，华为云，百度智能云
+# image-sync 瀹瑰櫒闀滃儚鍚屾宸ュ叿
+> 鏀寔k8s.gcr.io docker.io quay.io瀹瑰櫒闀滃儚鍚屾鍒伴樋閲屼簯锛岃吘璁簯锛屽崕涓轰簯锛岀櫨搴︽櫤鑳戒簯
 
-> 功能完善中。。。 敬请期待
+> 鐩墠浠呮敮鎸乻qlite3, mysql鏀寔寰呭紑鍙戜腑
+
+> 鐩墠浠呮敮鎸乴atest 鍚屾绛栫暐涓攏um鏁板瓧闄愬埗杩樻湭瀹炵幇
+
+> 灏嗚瀹屽杽鐨勫姛鑳斤細yaml閰嶇疆妫�鏌ワ紝mysql鏀寔锛宯um闄愬埗
+
+## 浣跨敤姝ラ
+1. 淇敼conf鏂囦欢澶逛笅鐨勫疄渚媦aml鏂囦欢锛岄噸鍛藉悕涓篶onfig.yaml
+2. 瀹夎渚濊禆 pip install -r requirements.txt
+3. python images-sync
