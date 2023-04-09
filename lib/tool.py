@@ -7,6 +7,7 @@ import requests
 import yaml
 import logging
 import re
+import math
 
 formatter = logging.Formatter('[%(asctime)s] %(filename)s line %(lineno)d - %(levelname)s: %(message)s')
 logger = logging.getLogger("image-sync")
@@ -139,15 +140,24 @@ def load_config(path):
 
 
 def docker_io_get_tag(image):
-    docker_io_url = 'https://hub.docker.com/v2/repositories/{namespace}/{image}/tags/?page_size={num}'.format(
-        namespace=image['namespace'], image=image['name'], num=image['syncPolicy']['num'])
+    # 每页最多100个
+    docker_io_url = 'https://hub.docker.com/v2/repositories/{namespace}/{image}/tags/?page_size=100&page='.format(
+        namespace=image['namespace'], image=image['name'])
 
     tag_list = []
     if image['syncPolicy']['type'] == 'latest':
-        response = requests.get(docker_io_url).json()
-        image_info_list = response['results']
-        for image_info in image_info_list:
-            tag_list.append(image_info['name'])
+        page = math.ceil(image['syncPolicy']['num'] / 100) + 1
+        mod = image['syncPolicy']['num'] % 100
+        for i in range(1, page):
+            response = requests.get(docker_io_url + str(i)).json()
+            if response.get('results', None):
+                image_info_list = response['results']
+                if mod == 0 or i < page - 1:
+                    for image_info in image_info_list:
+                        tag_list.append(image_info['name'])
+                else:
+                    for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
+                        tag_list.append(image_info_list[j]['name'])
     return tag_list
 
 
@@ -183,7 +193,15 @@ def quay_io_get_tag(image):
 
 
 if __name__ == '__main__':
-    image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
+    # image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
+    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+    #          'syncPolicy': {'type': 'latest', 'num': 10}}
+    image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
              'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-             'syncPolicy': {'type': 'latest', 'num': 10}}
+             'syncPolicy': {'type': 'latest', 'num': 3500}}
     load_config("../conf/config.yaml")
+    tag = docker_io_get_tag(image)
+    i = 1
+    for j in tag:
+        print(i, j)
+        i += 1
