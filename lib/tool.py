@@ -167,40 +167,63 @@ def k8s_gcr_io_get_tag(image):
                                                                                        image=image['name'])
     else:
         k8s_gcr_io_url = 'https://k8s.gcr.io/v2/{image}/tags/list'.format(image=image['name'])
+    print(k8s_gcr_io_url)
     if image['syncPolicy']['type'] == 'latest':
-        response = requests.get(k8s_gcr_io_url).json()
+        response = requests.get(k8s_gcr_io_url, proxies={
+            'http': 'http://127.0.0.1:10809',
+            'https': 'http://127.0.0.1:10809',
+        }).json()
+        # print(response)
         image_info_dict = response['manifest']
         tag_list = []
         for image_info in image_info_dict.values():
             if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
                 upload_time = image_info['timeUploadedMs']
-                tag_list.append({'tag': image_info['tag'][0], 'upload_time': upload_time})
+                tag_list.append({'tag': image_info['tag'], 'upload_time': upload_time})
         tag_list = sorted(tag_list, key=lambda x: x['upload_time'], reverse=True)
-        tag_list = [x['tag'] for x in tag_list][0:image['syncPolicy']['num']]
-        return tag_list
+        i = 0
+        all_tag_list = []
+        for data in tag_list:
+            for tag in data['tag']:
+                if i < image['syncPolicy']['num']:
+                    all_tag_list.append(tag)
+                    i += 1
+                else:
+                    break
+        return all_tag_list
 
 
 def quay_io_get_tag(image):
-    quay_io_url = 'https://quay.io/api/v1/repository/{namespaces}/{image}/tag?limit={num}&page={page}&onlyActiveTags=true'.format(
-        namespaces=image['namespace'], image=image['name'], num=image['syncPolicy']['num'], page=1)
+    quay_io_url = 'https://quay.io/api/v1/repository/{namespaces}/{image}/tag?onlyActiveTags=true&limit=100&page='.format(
+        namespaces=image['namespace'], image=image['name'])
     tag_list = []
     if image['syncPolicy']['type'] == 'latest':
-        response = requests.get(quay_io_url).json()
-        image_info_list = response['tags']
-        for image_info in image_info_list:
-            tag_list.append(image_info['name'])
+        page = math.ceil(image['syncPolicy']['num'] / 100) + 1
+        mod = image['syncPolicy']['num'] % 100
+        for i in range(1, page):
+            response = requests.get(quay_io_url + str(i)).json()
+            image_info_list = response['tags']
+            if len(image_info_list):
+                if mod == 0 or i < page - 1:
+                    for image_info in image_info_list:
+                        tag_list.append(image_info['name'])
+                else:
+                    for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
+                        tag_list.append(image_info_list[j]['name'])
     return tag_list
 
 
 if __name__ == '__main__':
-    # image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
+    # image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
     #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-    #          'syncPolicy': {'type': 'latest', 'num': 10}}
-    image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
+    #          'syncPolicy': {'type': 'latest', 'num': 3500}}
+    # image = {'namespace': '', 'name': 'pause', 'source': 'k8s.gcr.io',
+    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+    #          'syncPolicy': {'type': 'latest', 'num': 895}}
+    image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
              'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-             'syncPolicy': {'type': 'latest', 'num': 3500}}
-    load_config("../conf/config.yaml")
-    tag = docker_io_get_tag(image)
+             'syncPolicy': {'type': 'latest', 'num': 11}}
+    tag = quay_io_get_tag(image)
     i = 1
     for j in tag:
         print(i, j)
