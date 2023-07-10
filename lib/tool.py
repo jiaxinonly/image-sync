@@ -28,7 +28,7 @@ def set_log_file(path):
 
 
 def load_config(path):
-    with open(path, "r", encoding='gbk') as file:
+    with open(path, "r", encoding='utf-8') as file:
         config = yaml.safe_load(file)
         logger.setLevel(log_level[DEFAULT_LEVEL])
 
@@ -167,13 +167,8 @@ def k8s_gcr_io_get_tag(image):
                                                                                        image=image['name'])
     else:
         k8s_gcr_io_url = 'https://k8s.gcr.io/v2/{image}/tags/list'.format(image=image['name'])
-    print(k8s_gcr_io_url)
     if image['syncPolicy']['type'] == 'latest':
-        response = requests.get(k8s_gcr_io_url, proxies={
-            'http': 'http://127.0.0.1:10809',
-            'https': 'http://127.0.0.1:10809',
-        }).json()
-        # print(response)
+        response = requests.get(k8s_gcr_io_url).json()
         image_info_dict = response['manifest']
         tag_list = []
         for image_info in image_info_dict.values():
@@ -214,16 +209,18 @@ def quay_io_get_tag(image):
 
 
 if __name__ == '__main__':
-    # image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
-    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-    #          'syncPolicy': {'type': 'latest', 'num': 3500}}
+    image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
+             'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+             'syncPolicy': {'type': 'latest', 'num': 150}}
+    tag = docker_io_get_tag(image)
     # image = {'namespace': '', 'name': 'pause', 'source': 'k8s.gcr.io',
     #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
     #          'syncPolicy': {'type': 'latest', 'num': 895}}
-    image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
-             'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-             'syncPolicy': {'type': 'latest', 'num': 11}}
-    tag = quay_io_get_tag(image)
+    # tag = k8s_gcr_io_get_tag(image)
+    # image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
+    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+    #          'syncPolicy': {'type': 'latest', 'num': 11}}
+    # tag = quay_io_get_tag(image)
     i = 1
     for j in tag:
         print(i, j)

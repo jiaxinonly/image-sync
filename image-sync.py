@@ -9,16 +9,20 @@ from sync_job import SyncJob
 import logging
 from lib.tool import load_config
 import docker
+from docker.errors import APIError
 
 logger = logging.getLogger("image-sync")
 
 
 class ImageSync:
     def __init__(self):
+        logger.info("开始初始化配置检查。。。")
         self.config = load_config('conf/config.yaml')
         logger.info("初始化配置检查完成。。。")
 
+    # 检查数据库和docker账号
     def prepare(self):
+        # 检查数据库表
         if self.config["global"]["database"]["type"] == "sqlite":
             self.connect = sqlite3.connect(self.config["global"]["database"]["dbfile"])
             self.cursor = self.connect.cursor()
@@ -32,7 +36,6 @@ class ImageSync:
                   "target_path varchar(300) not null," \
                   "tag varchar(200) not null," \
                   "image_id varchar(100) not null)"
-            print(sql)
             self.cursor.execute(sql)
             logger.info("检查数据库完成。。。")
         elif self.config["global"]["database"]["type"] == "mysql":
@@ -51,15 +54,22 @@ class ImageSync:
         self.client = docker.from_env()
         for target in self.config["global"]["target"]:
             logger.info("docker login " + target['type'])
-            print(target['path'])
-            d = self.client.login(str(target['username']), target['password'], registry=target['path'])
-            print(d)
+            # try:
+            result = self.client.login(str(target['username']), target['password'], registry=target['path'])
+            logger.debug(result)
+            # except APIError:
+            #     logger.error(target["type"] + "登录失败，请检查账号密码！！！")
+            #     exit()
 
     def sync(self):
         for image in self.config["images"]:
-            logger.info("同步" + image['name'] + "镜像。。。")
+            logger.info("开始同步" + image['name'] + "镜像。。。")
+            # 设置镜像同步策略
             if not image.get("syncPolicy", None):
                 image["syncPolicy"] = self.config["global"]["syncPolicy"]
+            # 设置latest策略同步数量
+            if image["syncPolicy"]["type"] == 'latest' and not image["syncPolicy"].get("num"):
+                image['syncPolicy']['num'] = self.config['global']['syncPolicy']['num']
             if not image.get("source", None):
                 image["source"] = self.config["global"]["source"]
             if not image.get("target", None):
@@ -73,7 +83,6 @@ class ImageSync:
                     image['namespace'] = None
             if not image.get("alias", None):
                 image['alias'] = None
-
             sync_job = SyncJob(image, self.connect, self.cursor)
             sync_job.get_tag()
             sync_job.pull()
