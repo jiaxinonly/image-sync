@@ -10,6 +10,7 @@ import logging
 from lib.tool import load_config
 import docker
 from docker.errors import APIError
+import pymysql
 
 logger = logging.getLogger("image-sync")
 
@@ -36,9 +37,18 @@ class ImageSync:
                   "target_path varchar(300) not null," \
                   "tag varchar(200) not null," \
                   "image_id varchar(100) not null)"
-            self.cursor.execute(sql)
-            logger.info("检查数据库完成。。。")
         elif self.config["global"]["database"]["type"] == "mysql":
+            self.connect = pymysql.connect(
+                host=self.config["global"]["database"]["host"],
+                port=self.config["global"]["database"]["port"],
+                user=self.config["global"]["database"]["username"],
+                password=self.config["global"]["database"]["password"]
+            )
+            self.cursor = self.connect.cursor()
+            # 检查数据库db
+            self.cursor.execute('create database if not exists %s' % self.config["global"]["database"]["db"])
+            self.connect.select_db(self.config["global"]["database"]["db"])
+
             sql = "create table if not exists image_sync_history (" \
                   "id int primary key not null auto_increment comment '自增id'," \
                   "create_time timestamp not null default current_timestamp comment '第一次同步时间'," \
@@ -49,17 +59,17 @@ class ImageSync:
                   "target_name varchar(300) not null comment '同步目标镜像名'," \
                   "tag varchar(200) not null comment '镜像tag'," \
                   "image_id varchar(100) not null comment '镜像id')"
-            ...
+        self.cursor.execute(sql)
+        logger.info("检查数据库完成。。。")
 
         self.client = docker.from_env()
         for target in self.config["global"]["target"]:
             logger.info("docker login " + target['type'])
-            # try:
-            result = self.client.login(str(target['username']), target['password'], registry=target['path'])
-            logger.debug(result)
-            # except APIError:
-            #     logger.error(target["type"] + "登录失败，请检查账号密码！！！")
-            #     exit()
+            try:
+                self.client.login(str(target['username']), target['password'], registry=target['path'])
+            except APIError:
+                logger.error(target["type"] + "登录失败，请检查账号密码！！！")
+                exit()
 
     def sync(self):
         for image in self.config["images"]:

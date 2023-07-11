@@ -3,9 +3,9 @@
 
 > 目前仅支持sqlite3, mysql支持待开发中
 
-> 目前仅支持latest 同步策略且num数字限制还未实现
+> 目前仅支持latest和all同步策略
 
-> 将要完善的功能：yaml配置检查，mysql支持，num限制
+> 将要完善的功能：，mysql支持
 
 ## 使用步骤
 > 需要python3环境

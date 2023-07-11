@@ -18,7 +18,7 @@ DEFAULT_FILE = 'image-sync.log'
 DEFAULT_SYNCPOLICY = 'latest'
 DEFAULT_NUM = 30
 database_type = ['sqlite', 'mysql']
-sync_policy_type = ['latest']
+sync_policy_type = ['latest', 'all']
 
 
 def set_log_file(path):
@@ -94,20 +94,38 @@ def load_config(path):
                     text = text + database_type[i] + '、'
                 else:
                     text = text + database_type[i]
-            logger.error("非法的global.database.type参数:" + config['global']['database']['type'] + "，目前仅支持" + text + "数据库")
+            logger.error("非法的global.database.type参数:" + config['global']['database'][
+                'type'] + "，目前仅支持" + text + "数据库")
             exit()
         if config['global']['database']['type'] == 'sqlite' and config['global']['database'].get('dbfile',
                                                                                                  None) is None:
             logger.error("缺少global.database.dbfile参数")
             exit()
         if config['global']['database']['type'] == 'mysql':
-            logger.error("暂不支持mysql")
-            exit()
+            if config['global']['database'].get('host', None) is None:
+                logger.warning("缺少global.database.host参数，设置host为默认值127.0.0.1")
+                config["global"]["database"]["host"] = "127.0.0.1"
+            if config['global']['database'].get('port', None) is None:
+                logger.warning("缺少global.database.port参数，设置port为默认值3306")
+                config["global"]["database"]["port"] = 3306
+            if config['global']['database'].get('db', None) is None:
+                logger.warning("缺少global.database.db参数，设置db为默认值image-sync")
+                config["global"]["database"]["db"] = "image-sync"
+            else:
+                if re.search("-", config['global']['database']['db']):
+                    logger.error("mysql数据库db不支持 - 符号！！！")
+                    exit()
+            if config['global']['database'].get('username', None) is None or config['global']['database'].get(
+                    'password', None) is None:
+                logger.error("缺少mysql数据库用户名或密码参数！！！")
+                exit()
 
         if config['global'].get('syncPolicy', None) is None or not isinstance(config['global'].get('syncPolicy', None),
                                                                               dict):
             logger.warning("缺少global.syncPolicy参数，将使用默认值")
-            logger.warning("设置全局同步策略为默认全局同步策略:" + DEFAULT_SYNCPOLICY + "，设置全局同步数为默认全局同步数:" + str(DEFAULT_NUM))
+            logger.warning(
+                "设置全局同步策略为默认全局同步策略:" + DEFAULT_SYNCPOLICY + "，设置全局同步数为默认全局同步数:" + str(
+                    DEFAULT_NUM))
             config['global']['syncPolicy'] = {'type': DEFAULT_SYNCPOLICY, 'num': DEFAULT_NUM}
         if config['global']['syncPolicy'].get('type', None) is None:
             logger.warning("缺少global.syncPolicy.type参数，设置全局同步策略为默认全局同步策略:" + DEFAULT_SYNCPOLICY)
@@ -141,6 +159,7 @@ def load_config(path):
 
 def docker_io_get_tag(image):
     # 每页最多100个
+    # 数据格式样例 https://hub.docker.com/v2/repositories/library/busybox/tags/?page_size=100&page=1
     docker_io_url = 'https://hub.docker.com/v2/repositories/{namespace}/{image}/tags/?page_size=100&page='.format(
         namespace=image['namespace'], image=image['name'])
 
@@ -158,26 +177,44 @@ def docker_io_get_tag(image):
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
                         tag_list.append(image_info_list[j]['name'])
+            else:
+                break
+    elif image['syncPolicy']['type'] == 'all':
+        i = 1
+        while True:
+            response = requests.get(docker_io_url + str(i)).json()
+            if response.get('results', None):
+                image_info_list = response['results']
+                for image_info in image_info_list:
+                    tag_list.append(image_info['name'])
+                i += 1
+            else:
+                break
     return tag_list
 
 
 def k8s_gcr_io_get_tag(image):
+    # 数据格式样例：https://k8s.gcr.io/v2/kube-apiserver/tags/list
     if image['namespace']:
         k8s_gcr_io_url = 'https://k8s.gcr.io/v2/{namespaces}/{image}/tags/list'.format(namespaces=image['namespace'],
                                                                                        image=image['name'])
     else:
         k8s_gcr_io_url = 'https://k8s.gcr.io/v2/{image}/tags/list'.format(image=image['name'])
+
+    response = requests.get(k8s_gcr_io_url).json()
+    image_info_dict = response['manifest']
+    all_tag_list = []
     if image['syncPolicy']['type'] == 'latest':
-        response = requests.get(k8s_gcr_io_url).json()
-        image_info_dict = response['manifest']
         tag_list = []
+        # 遍历数据获取镜像更新时间然后排序
         for image_info in image_info_dict.values():
+            # 过滤没用的数据
             if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
                 upload_time = image_info['timeUploadedMs']
                 tag_list.append({'tag': image_info['tag'], 'upload_time': upload_time})
-        tag_list = sorted(tag_list, key=lambda x: x['upload_time'], reverse=True)
+        tag_list = sorted(tag_list, key=lambda x: x['upload_time'],
+                          reverse=True)  # 数据样例：[{'tag': ['v1.8.1'], 'upload_time': '1687966171419'}, {'tag': ['v1.8.0'], 'upload_time': '1685451089512'}]
         i = 0
-        all_tag_list = []
         for data in tag_list:
             for tag in data['tag']:
                 if i < image['syncPolicy']['num']:
@@ -185,10 +222,16 @@ def k8s_gcr_io_get_tag(image):
                     i += 1
                 else:
                     break
-        return all_tag_list
+    elif image['syncPolicy']['type'] == 'all':
+        for image_info in image_info_dict.values():
+            if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
+                for tag in image_info['tag']:
+                    all_tag_list.append(tag)
+    return all_tag_list
 
 
 def quay_io_get_tag(image):
+    # 数据格式样例：
     quay_io_url = 'https://quay.io/api/v1/repository/{namespaces}/{image}/tag?onlyActiveTags=true&limit=100&page='.format(
         namespaces=image['namespace'], image=image['name'])
     tag_list = []
@@ -205,6 +248,20 @@ def quay_io_get_tag(image):
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
                         tag_list.append(image_info_list[j]['name'])
+            else:
+                break
+    elif image['syncPolicy']['type'] == 'all':
+        i = 1
+        while True:
+            response = requests.get(quay_io_url + str(i)).json()
+            image_info_list = response['tags']
+            print(response['tags'])
+            if len(image_info_list):
+                for image_info in image_info_list:
+                    tag_list.append(image_info['name'])
+                i += 1
+            else:
+                break
     return tag_list
 
 
