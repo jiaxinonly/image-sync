@@ -8,6 +8,8 @@
 > 将要完善的功能：yaml配置检查，mysql支持，num限制
 
 ## 使用步骤
-1. 修改conf文件夹下的实例yaml文件，重命名为config.yaml
+> 需要python3环境
+1. 将conf文件夹下config-example文件重命名为config.yaml
+2. 根据需求修改配置文件，填写目标仓库账号密码
 2. 安装依赖 pip install -r requirements.txt
 3. python images-sync
