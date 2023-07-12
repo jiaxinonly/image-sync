@@ -103,7 +103,7 @@ class SyncJob:
         logger.info("开始push镜像。。。")
         for target_image in self.target_image_list:
             logger.info("docker push " + target_image['full_image_name'] + ":" + target_image['tag'])
-            # self.client.images.push(target_image['full_image_name'], target_image['tag'])
+            self.client.images.push(target_image['full_image_name'], target_image['tag'])
             image_id = self.client.images.get(
                 target_image['full_image_name'] + ':' + target_image['tag']).id
             sql = "insert into image_sync_history (source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}', '{}', '{}', '{}')".format(

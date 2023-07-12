@@ -255,7 +255,6 @@ def quay_io_get_tag(image):
         while True:
             response = requests.get(quay_io_url + str(i)).json()
             image_info_list = response['tags']
-            print(response['tags'])
             if len(image_info_list):
                 for image_info in image_info_list:
                     tag_list.append(image_info['name'])

@@ -53,10 +53,10 @@ class ImageSync:
                   "id int primary key not null auto_increment comment '自增id'," \
                   "create_time timestamp not null default current_timestamp comment '第一次同步时间'," \
                   "update_time timestamp not null default current_timestamp comment '最后一次更新时间'," \
-                  "suorce varchar(300) not null comment '同步源'," \
-                  "suorce_name varchar(300) not null comment '同步源镜像名'," \
-                  "target varchar(300) not null comment '同步目标'," \
-                  "target_name varchar(300) not null comment '同步目标镜像名'," \
+                  "source varchar(300) not null comment '同步源'," \
+                  "namespace varchar(300) not null comment '同步源命名空间'," \
+                  "name varchar(300) not null comment '镜像名'," \
+                  "target_path varchar(300) not null comment '同步目标路径'," \
                   "tag varchar(200) not null comment '镜像tag'," \
                   "image_id varchar(100) not null comment '镜像id')"
         self.cursor.execute(sql)
