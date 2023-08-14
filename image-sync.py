@@ -31,6 +31,7 @@ class ImageSync:
                   "id integer primary key autoincrement not null," \
                   "create_time timestamp not null default current_timestamp," \
                   "update_time timestamp not null default current_timestamp," \
+                  "source_update_time timestamp not null default current_timestamp," \
                   "source varchar(300) not null," \
                   "namespace varchar(300) not null," \
                   "name varchar(300) not null," \
@@ -53,6 +54,7 @@ class ImageSync:
                   "id int primary key not null auto_increment comment '自增id'," \
                   "create_time timestamp not null default current_timestamp comment '第一次同步时间'," \
                   "update_time timestamp not null default current_timestamp comment '最后一次更新时间'," \
+                  "source_update_time timestamp not null default current_timestamp comment '源目标镜像更新时间'," \
                   "source varchar(300) not null comment '同步源'," \
                   "namespace varchar(300) not null comment '同步源命名空间'," \
                   "name varchar(300) not null comment '镜像名'," \

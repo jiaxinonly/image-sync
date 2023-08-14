@@ -8,6 +8,7 @@ import yaml
 import logging
 import re
 import math
+from datetime import datetime
 
 formatter = logging.Formatter('[%(asctime)s] %(filename)s line %(lineno)d - %(levelname)s: %(message)s')
 logger = logging.getLogger("image-sync")
@@ -167,7 +168,7 @@ def docker_io_get_tag(image):
     docker_io_url = 'https://hub.docker.com/v2/repositories/{namespace}/{image}/tags/?page_size=100&page='.format(
         namespace=image['namespace'], image=image['name'])
 
-    tag_list = []
+    tag_list = {}
     if image['syncPolicy']['type'] == 'latest':
         page = math.ceil(image['syncPolicy']['num'] / 100) + 1
         mod = image['syncPolicy']['num'] % 100
@@ -177,10 +178,12 @@ def docker_io_get_tag(image):
                 image_info_list = response['results']
                 if mod == 0 or i < page - 1:
                     for image_info in image_info_list:
-                        tag_list.append(image_info['name'])
+                        update_time = datetime.strptime(image_info['last_updated'],"%Y-%m-%dT%H:%M:%S.%fZ")
+                        tag_list[image_info['name']] = update_time
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
-                        tag_list.append(image_info_list[j]['name'])
+                        update_time = datetime.strptime(image_info_list[j]['last_updated'], "%Y-%m-%dT%H:%M:%S.%fZ")
+                        tag_list[image_info_list[j]['name']] = update_time
             else:
                 break
     elif image['syncPolicy']['type'] == 'all':
@@ -190,7 +193,7 @@ def docker_io_get_tag(image):
             if response.get('results', None):
                 image_info_list = response['results']
                 for image_info in image_info_list:
-                    tag_list.append(image_info['name'])
+                    tag_list[image_info['name']] = image_info['last_updated']
                 i += 1
             else:
                 break
@@ -207,10 +210,10 @@ def k8s_gcr_io_get_tag(image):
 
     response = requests.get(k8s_gcr_io_url).json()
     image_info_dict = response['manifest']
-    all_tag_list = []
+    all_tag_list = {}
     if image['syncPolicy']['type'] == 'latest':
         tag_list = []
-        # 遍历数据获取镜像更新时间然后排序
+        # 遍历数据获取镜像更新时间,然后排序
         for image_info in image_info_dict.values():
             # 过滤没用的数据
             if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
@@ -222,7 +225,8 @@ def k8s_gcr_io_get_tag(image):
         for data in tag_list:
             for tag in data['tag']:
                 if i < image['syncPolicy']['num']:
-                    all_tag_list.append(tag)
+                    upload_time = datetime.fromtimestamp(int(data['upload_time']) / 1000)
+                    all_tag_list[tag] = upload_time
                     i += 1
                 else:
                     break
@@ -230,7 +234,8 @@ def k8s_gcr_io_get_tag(image):
         for image_info in image_info_dict.values():
             if image_info['tag'] and not re.search('sha256-[\d\w]*.sig', image_info['tag'][0]):
                 for tag in image_info['tag']:
-                    all_tag_list.append(tag)
+                    upload_time = datetime.fromtimestamp(int(image_info['upload_time']) / 1000)
+                    all_tag_list[tag] = upload_time
     return all_tag_list
 
 
@@ -238,7 +243,7 @@ def quay_io_get_tag(image):
     # 数据格式样例：
     quay_io_url = 'https://quay.io/api/v1/repository/{namespaces}/{image}/tag?onlyActiveTags=true&limit=100&page='.format(
         namespaces=image['namespace'], image=image['name'])
-    tag_list = []
+    tag_list = {}
     if image['syncPolicy']['type'] == 'latest':
         page = math.ceil(image['syncPolicy']['num'] / 100) + 1
         mod = image['syncPolicy']['num'] % 100
@@ -248,10 +253,12 @@ def quay_io_get_tag(image):
             if len(image_info_list):
                 if mod == 0 or i < page - 1:
                     for image_info in image_info_list:
-                        tag_list.append(image_info['name'])
+                        upload_time = datetime.strptime(image_info['last_modified'], "%a, %d %b %Y %H:%M:%S %z")
+                        tag_list[image_info['name']] = upload_time
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
-                        tag_list.append(image_info_list[j]['name'])
+                        upload_time = datetime.strptime(image_info_list[j]['last_modified'], "%a, %d %b %Y %H:%M:%S %z")
+                        tag_list[image_info_list[j]['name']] = upload_time
             else:
                 break
     elif image['syncPolicy']['type'] == 'all':
@@ -261,7 +268,8 @@ def quay_io_get_tag(image):
             image_info_list = response['tags']
             if len(image_info_list):
                 for image_info in image_info_list:
-                    tag_list.append(image_info['name'])
+                    upload_time = datetime.strptime(image_info['last_modified'], "%a, %d %b %Y %H:%M:%S %z")
+                    tag_list[image_info['name']] = upload_time
                 i += 1
             else:
                 break
@@ -269,19 +277,19 @@ def quay_io_get_tag(image):
 
 
 if __name__ == '__main__':
-    image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
-             'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-             'syncPolicy': {'type': 'latest', 'num': 150}}
-    tag = docker_io_get_tag(image)
+    # image = {'namespace': 'jenkins', 'name': 'jenkins', 'source': 'docker.io',
+    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+    #          'syncPolicy': {'type': 'latest', 'num': 150}}
+    # tag = docker_io_get_tag(image)
     # image = {'namespace': '', 'name': 'pause', 'source': 'k8s.gcr.io',
     #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
     #          'syncPolicy': {'type': 'latest', 'num': 895}}
     # tag = k8s_gcr_io_get_tag(image)
-    # image = {'namespace': 'coreos', 'name': 'flannel', 'source': 'quay.io',
-    #          'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
-    #          'syncPolicy': {'type': 'latest', 'num': 11}}
-    # tag = quay_io_get_tag(image)
+    image = {'namespace': 'centos', 'name': 'centos', 'source': 'quay.io',
+             'target': '[registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync]',
+             'syncPolicy': {'type': 'all'}}
+    tag = quay_io_get_tag(image)
     i = 1
     for j in tag:
-        print(i, j)
+        print(i, j, tag[j])
         i += 1

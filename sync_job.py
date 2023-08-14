@@ -3,6 +3,8 @@
 # Time: 2022/4/18 22:30
 # Author: jiaxin
 # Email: 1094630886@qq.com
+from datetime import datetime
+
 import docker
 from lib.tool import docker_io_get_tag, k8s_gcr_io_get_tag, quay_io_get_tag
 import logging
@@ -76,11 +78,11 @@ class SyncJob:
                         self.target_name = self.image['name'].replace('/', '')
                         full_image_name = target['path'] + '/' + self.image['name'].replace('/', '')
             # 查询镜像是否已经同步过
-            sql = "select tag from image_sync_history where source='{}' and namespace='{}' and name='{}' and target_path='{}'".format(
+            sql = "select tag,source_update_time from image_sync_history where source='{}' and namespace='{}' and name='{}' and target_path='{}'".format(
                 self.image['source'], self.image['namespace'], self.image['name'], target['path'])
             self.cursor.execute(sql)
             response = self.cursor.fetchall()
-            response = [i[0] for i in response]
+            response = {i[0]: i[1] for i in response}
             logger.debug(target['path'] + "同步过的tag列表：" + str(response))
             for tag in self.tag_list:
                 # 排除同步过的镜像
@@ -88,10 +90,27 @@ class SyncJob:
                     # 保存需要拉取的镜像tag 只要有一个目的镜像仓库没有同步过，都需要拉一次
                     if tag not in self.final_tag:
                         self.final_tag[tag] = [
-                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag}]
+                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag,
+                             'action': "create", "source_update_time": self.tag_list[tag]}]
                     else:
                         self.final_tag[tag].append(
-                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag})
+                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag,
+                             'action': "create", "source_update_time": self.tag_list[tag]})
+                else:
+                    # 对比更新时间
+                    update_time = datetime.strptime(response[tag], "%Y-%m-%d %H:%M:%S.%f")
+                    if update_time < self.tag_list[tag]:
+                        # 保存需要拉取的镜像tag 只要有一个目的镜像仓库没有同步过，都需要拉一次
+                        if tag not in self.final_tag:
+                            self.final_tag[tag] = [
+                                {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag,
+                                 'action': "update", "source_update_time": self.tag_list[tag]}]
+                        else:
+                            self.final_tag[tag].append(
+                                {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag,
+                                 'action': "update", "source_update_time": self.tag_list[tag]})
+                        logger.debug("tag " + tag + " 有更新")
+
         logger.debug("过滤后的镜像列表：" + str(self.final_tag))
 
     # 拉取镜像
@@ -118,9 +137,15 @@ class SyncJob:
                 self.client.images.push(data['full_image_name'], data['tag'])
                 image_id = self.client.images.get(
                     data['full_image_name'] + ':' + data['tag']).id
-                sql = "insert into image_sync_history (source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}', '{}', '{}', '{}')".format(
-                    self.image['source'], self.image['namespace'], self.image['name'], data['path'],
-                    data['tag'], image_id)
+                if data['action'] == "create":
+                    sql = "insert into image_sync_history (source_update_time, source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}','{}', '{}', '{}', '{}')".format(
+                        data['source_update_time'], self.image['source'], self.image['namespace'], self.image['name'],
+                        data['path'],
+                        data['tag'], image_id)
+                else:
+                    sql = "update image_sync_history set update_time='{}', source_update_time='{}',image_id='{}' where source='{}' and namespace='{}' and name='{}' and target_path='{}' and tag='{}'".format(
+                        datetime.now(), data['source_update_time'], image_id, self.image['source'],
+                        self.image['namespace'], self.image['name'], data['path'], data['tag'])
                 self.cursor.execute(sql)
                 logger.debug("清理镜像 " + data['full_image_name'] + ':' + data['tag'])
                 self.client.images.remove(data['full_image_name'] + ':' + data['tag'])
