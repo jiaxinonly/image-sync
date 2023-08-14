@@ -19,6 +19,7 @@ DEFAULT_SYNCPOLICY = 'latest'
 DEFAULT_NUM = 30
 database_type = ['sqlite', 'mysql']
 sync_policy_type = ['latest', 'all']
+BATCH_NUM = 20
 
 
 def set_log_file(path):
@@ -154,6 +155,9 @@ def load_config(path):
                     logger.info("设置全局同步数为:" + str(config['global']['syncPolicy']['num']))
                     config['global']['syncPolicy'] = {'type': config['global']['syncPolicy']['type'],
                                                       'num': config['global']['syncPolicy']['num']}
+        if config['global'].get('batch_num', None) is None:
+            logger.warning("缺少global.batch_num参数，将使用默认值" + str(BATCH_NUM))
+            config['global']['batch_num'] = BATCH_NUM
         return config
 
 

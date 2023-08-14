@@ -9,6 +9,7 @@ global:
     type: latest
     num: 30
   source: k8s.gcr.io
+  batch_num: 20
   target:
     - type: aliyun
       path: registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync

@@ -93,12 +93,9 @@ class ImageSync:
                     image['namespace'] = None
             if not image.get("alias", None):
                 image['alias'] = None
+            image['batch_num'] = self.config['global']['batch_num']
             sync_job = SyncJob(image, self.connect, self.cursor)
-            sync_job.get_tag()
-            sync_job.pull()
-            sync_job.make_tag()
-            sync_job.push()
-            sync_job.clear()
+            sync_job.start()
 
 
 if __name__ == '__main__':

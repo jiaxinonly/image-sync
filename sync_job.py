@@ -19,11 +19,21 @@ class SyncJob:
         self.connect = connect
         self.cursor = cursor
         self.client = docker.from_env()
+        self.final_tag = {}
         if self.image['namespace']:
             self.source_full_image_name = self.image['source'] + '/' + self.image['namespace'] + '/' + self.image[
                 'name']
         else:
             self.source_full_image_name = self.image['source'] + '/' + self.image['name']
+
+    def start(self):
+        self.get_tag()
+        for i in range(0, len(self.final_tag), self.image["batch_num"]):
+            batch_tag = list(self.final_tag.keys())[i:i + self.image["batch_num"]]
+            self.pull(batch_tag)
+            self.make_tag(batch_tag)
+            self.push(batch_tag)
+            self.clear(batch_tag)
 
     def get_tag(self):
         logger.info("获取完整同步tag列表。。。")
@@ -38,8 +48,6 @@ class SyncJob:
         ##############################
         # 处理镜像列表，去掉已经同步过的镜像
         ##############################
-        self.tag_set = set()
-        self.target_image_list = []
         # 遍历目的镜像仓库，获取需要拉取的镜像tag
         for target in self.image['target']:
             if self.image['alias']:
@@ -78,46 +86,50 @@ class SyncJob:
                 # 排除同步过的镜像
                 if tag not in response:
                     # 保存需要拉取的镜像tag 只要有一个目的镜像仓库没有同步过，都需要拉一次
-                    self.tag_set.add(tag)
-                    # 保存目的镜像需要推送的tag
-                    self.target_image_list.append(
-                        {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag})
-        logger.debug("过滤后的镜像列表：" + str(self.tag_set))
+                    if tag not in self.final_tag:
+                        self.final_tag[tag] = [
+                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag}]
+                    else:
+                        self.final_tag[tag].append(
+                            {'full_image_name': full_image_name, 'path': target['path'], 'tag': tag})
+        logger.debug("过滤后的镜像列表：" + str(self.final_tag))
 
     # 拉取镜像
-    def pull(self):
+    def pull(self, batch_tag):
         logger.info("开始拉取镜像。。。")
-        for tag in self.tag_set:
+        for tag in batch_tag:
             logger.info("拉取镜像" + self.source_full_image_name + ':' + tag)
             # 拉取镜像
             self.client.images.pull(self.source_full_image_name, tag)
 
-    def make_tag(self):
+    def make_tag(self, batch_tag):
         logger.info("开始标记tag。。。")
-        for target_image in self.target_image_list:
-            logger.debug(target_image['full_image_name'] + ':' + target_image['tag'] + " 标记完成")
-            self.client.images.get(self.source_full_image_name + ':' + target_image['tag']).tag(
-                target_image['full_image_name'] + ':' + target_image['tag'])
+        for tag in batch_tag:
+            for data in self.final_tag[tag]:
+                self.client.images.get(self.source_full_image_name + ':' + tag).tag(
+                    data['full_image_name'] + ':' + data['tag'])
+                logger.debug(data['full_image_name'] + ':' + data['tag'] + " 标记完成")
 
-    def push(self):
+    def push(self, batch_tag):
         logger.info("开始push镜像。。。")
-        for target_image in self.target_image_list:
-            logger.info("docker push " + target_image['full_image_name'] + ":" + target_image['tag'])
-            self.client.images.push(target_image['full_image_name'], target_image['tag'])
-            image_id = self.client.images.get(
-                target_image['full_image_name'] + ':' + target_image['tag']).id
-            sql = "insert into image_sync_history (source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}', '{}', '{}', '{}')".format(
-                self.image['source'], self.image['namespace'], self.image['name'], target_image['path'],
-                target_image['tag'], image_id)
-            self.cursor.execute(sql)
-            logger.debug("清理镜像 " + target_image['full_image_name'] + ':' + target_image['tag'])
-            self.client.images.remove(target_image['full_image_name'] + ':' + target_image['tag'])
-        self.connect.commit()
+        for tag in batch_tag:
+            for data in self.final_tag[tag]:
+                logger.info("docker push " + data['full_image_name'] + ":" + data['tag'])
+                self.client.images.push(data['full_image_name'], data['tag'])
+                image_id = self.client.images.get(
+                    data['full_image_name'] + ':' + data['tag']).id
+                sql = "insert into image_sync_history (source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}', '{}', '{}', '{}')".format(
+                    self.image['source'], self.image['namespace'], self.image['name'], data['path'],
+                    data['tag'], image_id)
+                self.cursor.execute(sql)
+                logger.debug("清理镜像 " + data['full_image_name'] + ':' + data['tag'])
+                self.client.images.remove(data['full_image_name'] + ':' + data['tag'])
+            self.connect.commit()
 
     # 清理源镜像
-    def clear(self):
+    def clear(self, batch_tag):
         logger.info("清除镜像。。。")
-        for tag in self.tag_set:
+        for tag in batch_tag:
             self.client.images.remove(self.source_full_image_name + ':' + tag)
 
 
@@ -126,8 +138,9 @@ if __name__ == '__main__':
              'target': [{'type': 'aliyun', 'path': 'registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync'}],
              'syncPolicy': {'type': 'latest', 'num': 10}}
     test = SyncJob(image, '', '')
-    test.get_tag()
-    test.pull()
-    test.make_tag()
-    test.push()
-    test.clear()
+    test.start()
+    # test.get_tag()
+    # test.pull()
+    # test.make_tag()
+    # test.push()
+    # test.clear()
