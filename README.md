@@ -18,13 +18,13 @@
 ## 镜像同步列表
 
 > 仅同步最新的50个tag
-> 如果需要同步其他镜像，可以在专属issues留言
->
-> 镜像拉取示例：
-> 源库：docker pull k8s.gcr.io/kube-apiserver:v1.24.13
-> 阿里云同步仓库：docker pull registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync/kube-apiserver:v1.24.13
-> 华为云同步仓库：docker pull swr.cn-southwest-2.myhuaweicloud.com/k8s.gcr.io/kube-apiserver:v1.24.13
-> 腾讯云同步仓库：docker pull ccr.ccs.tencentyun.com/k8s.gcr.io.sync/kube-apiserver:v1.24.13
+> 如果需要同步其他镜像，可以在专属issues留言  
+> 
+> **镜像拉取示例：**  
+> 源库：docker pull k8s.gcr.io/kube-apiserver:v1.24.13  
+> 阿里云同步仓库：docker pull registry.cn-hangzhou.aliyuncs.com/k8s_gcr_io_sync/kube-apiserver:v1.24.13  
+> 华为云同步仓库：docker pull swr.cn-southwest-2.myhuaweicloud.com/k8s.gcr.io/kube-apiserver:v1.24.13  
+> 腾讯云同步仓库：docker pull ccr.ccs.tencentyun.com/k8s.gcr.io.sync/kube-apiserver:v1.24.13  
 > 百度云同步仓库：docker pull registry.baidubce.com/k8s.gcr.io.sync/kube-apiserver:v1.24.13
 
 |   source   |   命令空间    |          镜像           |                            target                            |
