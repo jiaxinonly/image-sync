@@ -178,7 +178,7 @@ def docker_io_get_tag(image):
                 image_info_list = response['results']
                 if mod == 0 or i < page - 1:
                     for image_info in image_info_list:
-                        update_time = datetime.strptime(image_info['last_updated'],"%Y-%m-%dT%H:%M:%S.%fZ")
+                        update_time = datetime.strptime(image_info['last_updated'], "%Y-%m-%dT%H:%M:%S.%fZ")
                         tag_list[image_info['name']] = update_time
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
@@ -253,12 +253,15 @@ def quay_io_get_tag(image):
             if len(image_info_list):
                 if mod == 0 or i < page - 1:
                     for image_info in image_info_list:
-                        upload_time = datetime.strptime(image_info['last_modified'], "%a, %d %b %Y %H:%M:%S %z")
+                        upload_time = datetime.strptime(image_info['last_modified'], "%a, %d %b %Y %H:%M:%S %z").strftime("%Y-%m-%d %H:%M:%S.%f")
                         tag_list[image_info['name']] = upload_time
                 else:
                     for j in range(mod if mod <= len(image_info_list) else len(image_info_list)):
-                        upload_time = datetime.strptime(image_info_list[j]['last_modified'], "%a, %d %b %Y %H:%M:%S %z")
+                        upload_time = datetime.strptime(image_info_list[j]['last_modified'], "%a, %d %b %Y %H:%M:%S %z").strftime("%Y-%m-%d %H:%M:%S.%f")
                         tag_list[image_info_list[j]['name']] = upload_time
+                        print(upload_time)
+                        print(image_info_list[j]['last_modified'])
+                        print("----")
             else:
                 break
     elif image['syncPolicy']['type'] == 'all':

@@ -3,12 +3,19 @@
 
 > **个人开发可能会有bug和兼容性问题**
 
-> 目前数据库支持sqlite3, mysql
+> 目前数据库支持sqlite3, mysql  
+> 目前仅支持latest和all同步策略  
+> 支持多个配置文件，config-example.yaml配置文件会跳过
 
-> 目前仅支持latest和all同步策略
+## 目前存在的问题: 
+因起初设计考虑不够，存在同步多个源镜像仓库需要设置多个重复配置，如：  
+将k8s.gcr.io同步到阿里云k8s_gcr_io_sync和将quay.io同步到阿里云quay_io_sync
+有三种不优雅的解决方式：
+1. 被迫全部同步到一个仓库去（k8s.gcr.io===>阿里云image_sync,quay.io===>阿里云image_sync）
+2. 使用单个配置文件，每个image重复配置source和target
+3. 使用多个配置文件，每个配置文件重复配置target
 
-
-## 使用步骤
+## 使用方式
 > 需要python3和docker环境
 1. 将conf文件夹下config-example文件重命名为config.yaml
 2. 根据需求修改配置文件，填写目标仓库账号密码

@@ -1,4 +1,7 @@
 conf/config.yaml
+conf/k8s-grc-io.yaml
+conf/docker-io.yaml
+conf/quay-io.yaml
 .idea
 venv
 */__pycache__

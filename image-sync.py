@@ -3,7 +3,8 @@
 # Time: 2022/4/18 21:32
 # Author: jiaxin
 # Email: 1094630886@qq.com
-
+import os
+import re
 import sqlite3
 from sync_job import SyncJob
 import logging
@@ -16,9 +17,9 @@ logger = logging.getLogger("image-sync")
 
 
 class ImageSync:
-    def __init__(self):
+    def __init__(self, conf):
         logger.info("开始初始化配置检查。。。")
-        self.config = load_config('conf/config.yaml')
+        self.config = load_config(conf)
         logger.info("初始化配置检查完成。。。")
 
     # 检查数据库和docker账号
@@ -101,6 +102,9 @@ class ImageSync:
 
 
 if __name__ == '__main__':
-    image_sync = ImageSync()
-    image_sync.prepare()
-    image_sync.sync()
+    for file in os.listdir("conf"):
+        conf = os.path.join("conf", file)
+        if file != "config-example.yaml" and os.path.isfile(conf) and re.search(".*yaml$", file):
+            image_sync = ImageSync(conf)
+            image_sync.prepare()
+            image_sync.sync()
