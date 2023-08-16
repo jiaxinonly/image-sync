@@ -98,7 +98,7 @@ class SyncJob:
                              'action': "create", "source_update_time": self.tag_list[tag]})
                 else:
                     # 对比更新时间
-                    update_time = datetime.strptime(response[tag], "%Y-%m-%d %H:%M:%S.%f")
+                    update_time = datetime.strptime(response[tag], "%Y-%m-%d %H:%M:%S")
                     if update_time < self.tag_list[tag]:
                         # 保存需要拉取的镜像tag 只要有一个目的镜像仓库没有同步过，都需要拉一次
                         if tag not in self.final_tag:
@@ -138,10 +138,9 @@ class SyncJob:
                 image_id = self.client.images.get(
                     data['full_image_name'] + ':' + data['tag']).id
                 if data['action'] == "create":
-                    sql = "insert into image_sync_history (source_update_time, source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}','{}', '{}', '{}', '{}')".format(
-                        data['source_update_time'], self.image['source'], self.image['namespace'], self.image['name'],
-                        data['path'],
-                        data['tag'], image_id)
+                    sql = "insert into image_sync_history (create_time, update_time, source_update_time, source, namespace, name, target_path, tag, image_id) values ('{}','{}','{}','{}','{}','{}', '{}', '{}', '{}')".format(
+                        datetime.now(), datetime.now(), data['source_update_time'], self.image['source'],
+                        self.image['namespace'], self.image['name'], data['path'], data['tag'], image_id)
                 else:
                     sql = "update image_sync_history set update_time='{}', source_update_time='{}',image_id='{}' where source='{}' and namespace='{}' and name='{}' and target_path='{}' and tag='{}'".format(
                         datetime.now(), data['source_update_time'], image_id, self.image['source'],

@@ -13,7 +13,8 @@
 有三种不优雅的解决方式：
 1. 被迫全部同步到一个仓库去（k8s.gcr.io===>阿里云image_sync,quay.io===>阿里云image_sync）
 2. 使用单个配置文件，每个image重复配置source和target
-3. 使用多个配置文件，每个配置文件重复配置target
+3. 使用多个配置文件，每个配置文件重复配置target (多个配置文件会有日志重复问题)
+> 后续解决思路，使用单个yaml文件，可以配置多个source和target，images在source和target下面
 
 ## 使用方式
 > 需要python3和docker环境

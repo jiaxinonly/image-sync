@@ -105,6 +105,7 @@ if __name__ == '__main__':
     for file in os.listdir("conf"):
         conf = os.path.join("conf", file)
         if file != "config-example.yaml" and os.path.isfile(conf) and re.search(".*yaml$", file):
+            logger.info(file)
             image_sync = ImageSync(conf)
             image_sync.prepare()
             image_sync.sync()
